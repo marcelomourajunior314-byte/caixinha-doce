@@ -243,7 +243,7 @@ nav.tabs button.fab em{font-style:normal;color:var(--brand)}
    - Caixa (só Pix): deveria ter recebido = valor dos vendidos
             diferença = Pix recebidos − deveria (negativo = alguém pegou sem pagar)
    ========================================================= */
-const APP_V = '1.5';
+const APP_V = '1.6';
 const LS_DATA = 'caixinhaDoce:data';
 const LS_CFG  = 'caixinhaDoce:cfg';
 const GIST_FILE = 'caixinha-doce.json';
@@ -555,6 +555,8 @@ function vLucro(){
     <div class="chart" style="height:130px">${serie.map(x=>`<div class="c" title="${x.k}: ${fmtS(x.lucro)}"><div class="bars"><div style="width:70%;border-radius:4px 4px 0 0;min-height:2px;height:${Math.abs(x.lucro)/maxAbs*100}%;background:${neg(x.lucro)?'var(--bad)':'var(--ok)'};opacity:${x.lucro?1:.25}"></div></div><div class="x">${LP.modo==='semana'?cap(dtc(x.k).slice(0,3)):x.k.slice(8)}</div></div>`).join('')}</div>
   </div>`:''}
 
+  ${analisePrecosHtml()}
+
   <div class="card">
     <h3>Por produto</h3>
     ${prods.length?`<div style="overflow-x:auto"><table class="tbl"><tr><th>Produto</th><th>Vend.</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
@@ -564,6 +566,50 @@ function vLucro(){
   </div>
   ${LP.modo==='dia'&&sel.length?`<div class="card" style="padding:4px 16px">${sel.map(x=>`<div class="li" onclick="detalheDia('${x.data}')"><div class="emo">${TIPO[tipoDe(x)].i}</div><div class="grow"><div class="t">${x.data.slice(11,16)} · ${TIPO[tipoDe(x)].l}</div><div class="small muted">${x.qtd?`${x.qtd} vendidos · Pix ${brl(x.recebido)}`:''}${Object.values(x.itens).some(i=>i.rep)?` trouxe ${Object.values(x.itens).reduce((a,i)=>a+i.rep,0)}`:''}</div></div><b>${fmtS(r2(x.recebido-x.custo))}</b></div>`).join('')}</div>`:''}
   `;
+}
+
+/* ---------- Análise de preços: onde o lucro está baixo ---------- */
+let ALVO = 50; // margem desejada (% do preço que vira lucro). 50% = vender pelo dobro do custo
+function arred(v){ const passo = v<2 ? 0.25 : 0.5; return Math.ceil(v/passo - 1e-9)*passo }
+function analisePrecosHtml(){
+  const hoje=hojeISO(), ini=addDias(hoje,-29);
+  const dias = calcular().dias;
+  const ult = dias.filter(x=>x.data.slice(0,10)>=ini && !x.primeiro);
+  const vend30={}; let v=0, rec=0;
+  ult.forEach(x=>{ v+=x.vendas; rec+=x.recebido; for(const id in x.itens) vend30[id]=(vend30[id]||0)+x.itens[id].vend });
+  // fração que realmente é paga (calote). Limitada para não distorcer.
+  const pago = v>0 ? Math.min(1, Math.max(0.5, rec/v)) : 1;
+  const lista = S.produtos.filter(p=>p.ativo && p.preco>0 && p.custo>0).map(p=>{
+    const margem = (p.preco-p.custo)/p.preco*100;
+    const margemReal = (p.preco*pago - p.custo)/(p.preco*pago)*100;
+    const sug = Math.max(p.preco, arred(p.custo/(1-ALVO/100)/pago));
+    const q = vend30[p.id]||0;
+    const ganho = r2(q*(sug-p.preco)*pago);
+    return {p, margem, margemReal, lucroUn:r2(p.preco*pago-p.custo), sug, q, ganho, baixo: margemReal < ALVO-0.5};
+  }).sort((a,b)=>a.margemReal-b.margemReal);
+  if(!lista.length) return `<div class="card"><h3>💡 Onde aumentar o lucro</h3><div class="muted small">Cadastre preço e custo dos produtos para ver a análise.</div></div>`;
+  const totGanho = r2(lista.reduce((a,o)=>a+(o.baixo?o.ganho:0),0));
+  const cor = m => m<30?'var(--bad)':m<ALVO-0.5?'var(--warn)':'var(--ok)';
+  return `<div class="card">
+    <h3>💡 Onde aumentar o lucro</h3>
+    <div class="small muted" style="margin-top:-4px">Meta de margem (quanto de cada venda vira lucro):</div>
+    <div class="chips" style="margin:8px 0 6px">${[40,50,60].map(m=>`<button class="chip ${ALVO===m?'on':''}" onclick="ALVO=${m};vLucro()">${m}%${m===50?' · dobro do custo':''}</button>`).join('')}</div>
+    ${pago<0.995?`<div class="notice st-warn" style="margin:8px 0">⚠️<div>Nos últimos 30 dias você recebeu <b>${(pago*100).toFixed(0)}%</b> do que foi vendido. Os preços sugeridos já compensam esse calote.</div></div>`:''}
+    ${lista.map(o=>`<div style="padding:12px 0;border-top:1px solid var(--line)">
+      <div class="row between"><span style="font-weight:600">${o.p.emoji} ${esc(o.p.nome)}</span><b style="color:${cor(o.margemReal)}">${o.margemReal.toFixed(0)}% de margem</b></div>
+      <div class="small muted" style="margin-top:2px">Custo ${brl(o.p.custo)} · vende a ${brl(o.p.preco)} · lucra ${brl(o.lucroUn)} por unidade${pago<0.995?' (já descontado o não pago)':''}</div>
+      <div class="bar" style="margin-top:6px"><i style="width:${Math.max(2,Math.min(100,o.margemReal))}%;background:${cor(o.margemReal)}"></i></div>
+      ${o.baixo?`<div class="row between" style="margin-top:8px;gap:8px">
+        <div class="small">Sugerido: <b style="font-size:16px">${brl(o.sug)}</b>${o.q?`<br><span class="muted">+${brl(o.ganho)}/mês no ritmo atual (${o.q} vendidos em 30 dias)</span>`:''}</div>
+        <button class="btn sm gold" onclick="aplicarPreco('${o.p.id}',${o.sug})">Usar ${brl(o.sug)}</button></div>`
+      :`<div class="small" style="margin-top:6px;color:var(--ok)">✓ Dentro da meta</div>`}
+    </div>`).join('')}
+    ${totGanho>0?`<div class="notice st-ok" style="margin:6px 0 0">📈<div>Ajustando os itens abaixo da meta, o lucro sobe cerca de <b>${brl(totGanho)} por mês</b> (se as vendas continuarem iguais).</div></div>`:''}
+    <div class="small muted" style="margin-top:8px">Preços arredondados para cima (R$ 0,25 até R$ 2, depois R$ 0,50). Subir muito o preço pode reduzir as vendas, então teste aos poucos.</div>
+  </div>`;
+}
+function aplicarPreco(id,v){
+  const p=prod(id); confirmar(`Mudar o preço de ${p.nome} de ${brl(p.preco)} para ${brl(v)}? Vale a partir das próximas conferências.`,()=>{ p.preco=v; salvar(); fecharModal(); toast('Preço atualizado'); vLucro() });
 }
 
 /* =================== CONFERÊNCIA (lançar) =================== */
