@@ -227,10 +227,10 @@ nav.tabs button.fab em{font-style:normal;color:var(--brand)}
 
 <nav class="tabs" id="tabs">
   <button data-tab="inicio" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</button>
-  <button data-tab="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Histórico</button>
+  <button data-tab="lucro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Lucro</button>
   <button data-tab="lancar" class="fab"><span class="circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><em>Conferir</em></button>
-  <button data-tab="produtos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Produtos</button>
-  <button data-tab="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Ajustes</button>
+  <button data-tab="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Histórico</button>
+  <button data-tab="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Mais</button>
 </nav>
 
 <script>
@@ -243,7 +243,7 @@ nav.tabs button.fab em{font-style:normal;color:var(--brand)}
    - Caixa (só Pix): deveria ter recebido = valor dos vendidos
             diferença = Pix recebidos − deveria (negativo = alguém pegou sem pagar)
    ========================================================= */
-const APP_V = '1.4';
+const APP_V = '1.5';
 const LS_DATA = 'caixinhaDoce:data';
 const LS_CFG  = 'caixinhaDoce:cfg';
 const GIST_FILE = 'caixinha-doce.json';
@@ -331,8 +331,8 @@ function calcular(ate=null, skip=null){
       if(!esp && !cont && !rep && !(p.id in (r.contado||{})) && !(p.id in (r.reposto||{}))) { continue }
       const vend = primeiro ? 0 : Math.max(0, esp-cont);
       const sobra = primeiro ? 0 : Math.max(0, cont-esp);
-      const preco = r.precos?.[p.id] ?? p.preco ?? 0;
-      const cu = r.custos?.[p.id] ?? p.custo ?? 0;
+      const preco = r.precos?.[p.id] > 0 ? r.precos[p.id] : (p.preco||0);
+      const cu = r.custos?.[p.id] > 0 ? r.custos[p.id] : (p.custo||0);
       itens[p.id] = {esp, cont, vend, sobra, rep, fin:cont+rep, preco, custo:cu};
       vendas += vend*preco; custo += vend*cu; qtd += vend; sobras += sobra;
       estoque[p.id] = cont+rep;
@@ -352,13 +352,13 @@ function calcular(ate=null, skip=null){
 
 /* ---------- Navegação ---------- */
 let TAB='inicio';
-const TITULOS={inicio:'Início',historico:'Histórico',lancar:'Conferência',produtos:'Produtos',ajustes:'Ajustes'};
+const TITULOS={lucro:'Lucro',inicio:'Início',historico:'Histórico',lancar:'Conferência',produtos:'Produtos',ajustes:'Mais'};
 function ir(tab, opts){
   TAB=tab;
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===(tab==='produtos'?'ajustes':tab)));
   document.getElementById('hdrTitle').textContent = TITULOS[tab];
   window.scrollTo(0,0);
-  ({inicio:vInicio, historico:vHistorico, lancar:vLancar, produtos:vProdutos, ajustes:vAjustes})[tab](opts);
+  ({lucro:vLucro, inicio:vInicio, historico:vHistorico, lancar:vLancar, produtos:vProdutos, ajustes:vAjustes})[tab](opts);
 }
 document.getElementById('tabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) ir(b.dataset.tab) });
 const V = () => document.getElementById('view');
@@ -458,6 +458,112 @@ function statusDiaHtml(h){
   if(h.dif > 0.009) return `<div class="hero"><div class="ic st-warn">🤔</div><div><h3>Sobrou ${brl(h.dif)}</h3><div class="small muted">${q} · recebeu mais que o vendido. Pagamento adiantado ou erro de contagem.</div></div></div>`;
   if(tipoDe(h)==='reposicao' && !h.qtd) return `<div class="hero"><div class="ic st-brand">📥</div><div><h3>Reposição registrada</h3><div class="small muted">${q} · trouxe ${trouxe} itens</div></div></div>`;
   return `<div class="hero"><div class="ic st-ok">✅</div><div><h3>Caixa bateu!</h3><div class="small muted">${q} · ${h.qtd} itens vendidos · ${brl(h.vendas)}</div></div></div>`;
+}
+
+/* =================== LUCRO =================== */
+let LP = {modo:'semana', ref:null};
+function rangeLucro(){
+  const ref = LP.ref || hojeISO(); const d = dt(ref);
+  const dd = x => x.slice(8,10)+'/'+x.slice(5,7);
+  if(LP.modo==='dia') return [ref, ref, fmtLonga(ref)];
+  if(LP.modo==='semana'){ const ini=addDias(ref, -((d.getDay()+6)%7)); const fim=addDias(ini,6); return [ini, fim, `Semana de ${dd(ini)} a ${dd(fim)}`] }
+  const ini=hojeISO(new Date(d.getFullYear(),d.getMonth(),1)), fim=hojeISO(new Date(d.getFullYear(),d.getMonth()+1,0));
+  return [ini, fim, cap(d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))];
+}
+function moverLucro(n){
+  const d = dt(LP.ref||hojeISO());
+  if(LP.modo==='dia') d.setDate(d.getDate()+n); else if(LP.modo==='semana') d.setDate(d.getDate()+7*n); else { d.setDate(1); d.setMonth(d.getMonth()+n) }
+  LP.ref = hojeISO(d); vLucro();
+}
+function vLucro(){
+  const [ini,fim,lbl] = rangeLucro();
+  const todos = calcular().dias;
+  const sel = todos.filter(x=>{ const k=x.data.slice(0,10); return k>=ini && k<=fim });
+  const t = {vend:0, custo:0, rec:0, invest:0, qtd:0, trouxe:0};
+  const porProd = {}, porDia = {};
+  sel.forEach(x=>{
+    let inv=0;
+    for(const id in x.itens){ const i=x.itens[id]; const o=porProd[id]||(porProd[id]={vend:0,rec:0,custo:0,trouxe:0,invest:0});
+      o.vend+=i.vend; o.rec+=i.vend*i.preco; o.custo+=i.vend*i.custo; o.trouxe+=i.rep; o.invest+=i.rep*i.custo; inv+=i.rep*i.custo; t.trouxe+=i.rep }
+    t.vend+=x.vendas; t.custo+=x.custo; t.rec+=x.recebido; t.invest+=inv; t.qtd+=x.qtd;
+    const k=x.data.slice(0,10); const g=porDia[k]||(porDia[k]={vend:0,rec:0,custo:0,invest:0}); g.vend+=x.vendas; g.rec+=x.recebido; g.custo+=x.custo; g.invest+=inv;
+  });
+  for(const k in t) t[k]=r2(t[k]);
+  const lucro = r2(t.rec - t.custo);
+  const lucroPot = r2(t.vend - t.custo);
+  const naoPago = r2(t.vend - t.rec);
+  const margem = t.rec>0 ? lucro/t.rec*100 : 0;
+  const caixaLiq = r2(t.rec - t.invest);
+  const {estoque} = calcular();
+  const parado = r2(S.produtos.reduce((a,p)=>a+(estoque[p.id]||0)*(p.custo||0),0));
+  const semCusto = S.produtos.filter(p=>p.ativo && !(p.custo>0));
+  const prox = (()=>{ const save=LP.ref; LP.ref=null; const hoje=rangeLucro(); LP.ref=save; return fim < hoje[1] })();
+  const neg = v => v<-0.009;
+  const fmtS = v => neg(v)?'−'+brl(-v):brl(v);
+
+  // série do gráfico
+  let serie=[];
+  if(LP.modo!=='dia'){ let k=ini; while(k<=fim){ const g=porDia[k]||{rec:0,custo:0,vend:0}; serie.push({k, lucro:r2(g.rec-g.custo)}); k=addDias(k,1) } }
+  const maxAbs = Math.max(1,...serie.map(x=>Math.abs(x.lucro)));
+  const prods = Object.entries(porProd).map(([id,o])=>({p:prod(id),...o})).filter(o=>o.p && (o.vend||o.trouxe)).sort((a,b)=>(b.rec-b.custo)-(a.rec-a.custo));
+
+  V().innerHTML = `
+  <div class="seg" style="margin-bottom:12px">${[['dia','Dia'],['semana','Semana'],['mes','Mês']].map(([k,l])=>`<button class="${LP.modo===k?'on':''}" onclick="LP.modo='${k}';vLucro()">${l}</button>`).join('')}</div>
+  <div class="card row between" style="padding:10px 12px">
+    <button class="btn sm ghost" onclick="moverLucro(-1)">‹</button>
+    <div style="text-align:center"><b>${lbl}</b>${LP.ref&&LP.ref!==hojeISO()?`<div><a href="#" class="small" style="color:var(--brand)" onclick="LP.ref=null;vLucro();return false">voltar para hoje</a></div>`:''}</div>
+    <button class="btn sm ghost" ${prox?'':'disabled style="opacity:.3"'} onclick="moverLucro(1)">›</button>
+  </div>
+
+  ${semCusto.length?`<div class="notice st-warn">⚠️<div>Sem custo cadastrado: ${semCusto.map(p=>esc(p.nome)).join(', ')}. O lucro desses itens aparece como 100%. <a href="#" onclick="ir('produtos');return false" style="color:inherit;font-weight:700">Cadastrar →</a></div></div>`:''}
+
+  <div class="card" style="background:${neg(lucro)?'var(--bad-soft)':'var(--ok-soft)'};border-color:transparent">
+    <div class="small" style="font-weight:600;color:var(--ink2)">LUCRO LIMPO</div>
+    <div style="font-family:Fraunces;font-size:40px;font-weight:800;color:${neg(lucro)?'var(--bad)':'var(--ok)'};line-height:1.1">${fmtS(lucro)}</div>
+    <div class="small" style="color:var(--ink2);margin-top:4px">Pix recebidos − custo do que foi vendido${t.rec>0?` · margem ${margem.toFixed(0)}%`:''}</div>
+  </div>
+
+  <div class="grid2">
+    <div class="kpi"><div class="l">Entrou (Pix)</div><div class="v">${brl(t.rec)}</div><div class="s">${t.qtd} itens vendidos</div></div>
+    <div class="kpi"><div class="l">Custo do vendido</div><div class="v">${brl(t.custo)}</div><div class="s">o que você pagou neles</div></div>
+    <div class="kpi"><div class="l">Gastei em mercadoria</div><div class="v">${brl(t.invest)}</div><div class="s">${t.trouxe} itens repostos</div></div>
+    <div class="kpi ${neg(naoPago)?'':naoPago>0.009?'bad':'ok'}"><div class="l">Não pago</div><div class="v">${naoPago>0.009?'−'+brl(naoPago):brl(0)}</div><div class="s">vendido ${brl(t.vend)}</div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Resumo do caixa</h3>
+    <table class="calc">
+      <tr><td>Vendido (se todos pagassem)</td><td>${brl(t.vend)}</td></tr>
+      <tr><td>− Não pago</td><td style="color:${naoPago>0.009?'var(--bad)':'inherit'}">${naoPago>0.009?brl(naoPago):brl(0)}</td></tr>
+      <tr class="tot"><td>Entrou de Pix</td><td>${brl(t.rec)}</td></tr>
+      <tr><td>− Custo do que foi vendido</td><td>${brl(t.custo)}</td></tr>
+      <tr class="tot"><td>Lucro limpo</td><td style="color:${neg(lucro)?'var(--bad)':'var(--ok)'}">${fmtS(lucro)}</td></tr>
+      <tr><td class="muted">Lucro se todos pagassem</td><td class="muted">${fmtS(lucroPot)}</td></tr>
+    </table>
+    <div style="border-top:1.5px dashed var(--line);margin-top:10px;padding-top:6px">
+    <table class="calc">
+      <tr><td>Entrou de Pix</td><td>${brl(t.rec)}</td></tr>
+      <tr><td>− Gastei comprando mercadoria</td><td>${brl(t.invest)}</td></tr>
+      <tr class="tot"><td>Sobrou no bolso no período</td><td style="color:${neg(caixaLiq)?'var(--bad)':'var(--ok)'}">${fmtS(caixaLiq)}</td></tr>
+    </table>
+    <div class="small muted" style="margin-top:6px">Esse número pode ficar negativo em dias de reposição: o dinheiro virou doce na caixa (hoje tem <b>${brl(parado)}</b> em mercadoria, a preço de custo).</div>
+    </div>
+  </div>
+
+  ${serie.length?`<div class="card">
+    <div class="row between"><h3 style="margin:0">Lucro por dia</h3><span class="small muted">${lbl}</span></div>
+    <div class="chart" style="height:130px">${serie.map(x=>`<div class="c" title="${x.k}: ${fmtS(x.lucro)}"><div class="bars"><div style="width:70%;border-radius:4px 4px 0 0;min-height:2px;height:${Math.abs(x.lucro)/maxAbs*100}%;background:${neg(x.lucro)?'var(--bad)':'var(--ok)'};opacity:${x.lucro?1:.25}"></div></div><div class="x">${LP.modo==='semana'?cap(dtc(x.k).slice(0,3)):x.k.slice(8)}</div></div>`).join('')}</div>
+  </div>`:''}
+
+  <div class="card">
+    <h3>Por produto</h3>
+    ${prods.length?`<div style="overflow-x:auto"><table class="tbl"><tr><th>Produto</th><th>Vend.</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
+      ${prods.map(o=>`<tr><td>${o.p.emoji} ${esc(o.p.nome)}</td><td>${o.vend}</td><td>${brl(o.rec)}</td><td>${brl(o.custo)}</td><td><b style="color:var(--ok)">${brl(o.rec-o.custo)}</b></td></tr>`).join('')}
+    </table></div><div class="small muted" style="margin-top:8px">Lucro por produto considera que todos pagaram. O que faltou de Pix aparece em "Não pago".</div>`
+    :'<div class="muted small">Nenhuma venda neste período.</div>'}
+  </div>
+  ${LP.modo==='dia'&&sel.length?`<div class="card" style="padding:4px 16px">${sel.map(x=>`<div class="li" onclick="detalheDia('${x.data}')"><div class="emo">${TIPO[tipoDe(x)].i}</div><div class="grow"><div class="t">${x.data.slice(11,16)} · ${TIPO[tipoDe(x)].l}</div><div class="small muted">${x.qtd?`${x.qtd} vendidos · Pix ${brl(x.recebido)}`:''}${Object.values(x.itens).some(i=>i.rep)?` trouxe ${Object.values(x.itens).reduce((a,i)=>a+i.rep,0)}`:''}</div></div><b>${fmtS(r2(x.recebido-x.custo))}</b></div>`).join('')}</div>`:''}
+  `;
 }
 
 /* =================== CONFERÊNCIA (lançar) =================== */
@@ -762,6 +868,9 @@ function removerProduto(id,usado){
 /* =================== AJUSTES =================== */
 function vAjustes(){
   V().innerHTML = `
+  <button class="card li" style="width:100%;text-align:left;font:inherit;color:inherit" onclick="ir('produtos')">
+    <div class="emo">🍬</div><div class="grow"><div class="t">Produtos</div><div class="small muted">Cadastrar itens, preço, custo e estoque mínimo</div></div><b style="font-size:20px;color:var(--mute)">›</b>
+  </button>
   <div class="card">
     <h3>Geral</h3>
     <label class="f" style="margin-top:0">Nome do local</label>
