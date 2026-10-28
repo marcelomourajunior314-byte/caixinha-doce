@@ -243,7 +243,7 @@ nav.tabs button.fab em{font-style:normal;color:var(--brand)}
    - Caixa (só Pix): deveria ter recebido = valor dos vendidos
             diferença = Pix recebidos − deveria (negativo = alguém pegou sem pagar)
    ========================================================= */
-const APP_V = '1.3';
+const APP_V = '1.4';
 const LS_DATA = 'caixinhaDoce:data';
 const LS_CFG  = 'caixinhaDoce:cfg';
 const GIST_FILE = 'caixinha-doce.json';
@@ -778,7 +778,7 @@ function vAjustes(){
     <label class="f">Token do GitHub (permissão "gist")</label>
     <input class="inp" id="gTok" type="password" placeholder="ghp_..." value="${esc(CFG.token||'')}">
     <label class="f">ID do Gist</label>
-    <input class="inp" id="gId" placeholder="deixe vazio para criar um novo" value="${esc(CFG.gistId||'')}">
+    <input class="inp" id="gId" placeholder="deixe vazio para achar seu backup automaticamente" value="${esc(CFG.gistId||'')}">
     <div class="grid2" style="margin-top:12px">
       <button class="btn primary" onclick="conectarGist()">${CFG.gistId?'Salvar e sincronizar':'Conectar'}</button>
       ${CFG.gistId?`<button class="btn ghost" onclick="desconectarGist()">Desconectar</button>`:'<span></span>'}
@@ -828,7 +828,7 @@ async function pull(){
     if(f){
       const txt = f.truncated ? await (await fetch(f.raw_url,{cache:'no-store'})).text() : f.content;
       const remoto = JSON.parse(txt);
-      if(remoto.updatedAt > (S.updatedAt||0) && !CFG.pendente){ S = migrar(remoto); localStorage.setItem(LS_DATA, JSON.stringify(S)); render() }
+      if((remoto.updatedAt > (S.updatedAt||0) || !Object.keys(S.registros).length) && Object.keys(remoto.registros||{}).length && !CFG.pendente){ S = migrar(remoto); localStorage.setItem(LS_DATA, JSON.stringify(S)); render() }
       else if((S.updatedAt||0) > remoto.updatedAt || CFG.pendente){ await push() }
     } else await push();
     CFG.lastSync=Date.now(); salvarCfg(); syncIdle();
@@ -849,13 +849,36 @@ async function conectarGist(){
   try{
     syncStatus('busy','Conectando…');
     if(!id){
-      const g = await gh('/gists',{method:'POST',body:JSON.stringify({description:'Caixinha Doce – dados',public:false,files:{[GIST_FILE]:{content:JSON.stringify(S)}}})});
-      CFG.gistId=g.id; salvarCfg(); toast('Gist criado e conectado!');
+      // procura um backup que já exista na conta (pega o que tiver mais conferências)
+      syncStatus('busy','Procurando backup…');
+      const lista = await gh('/gists?per_page=100');
+      let melhor=null, melhorQtd=-1, melhorDados=null;
+      for(const g of lista.filter(g=>g.files && g.files[GIST_FILE])){
+        try{
+          const full = await gh('/gists/'+g.id); const f=full.files[GIST_FILE];
+          const txt = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
+          const d = JSON.parse(txt); const q = Object.keys(d.registros||{}).length;
+          if(q>melhorQtd || (q===melhorQtd && (d.updatedAt||0)>(melhorDados?.updatedAt||0))){ melhor=g.id; melhorQtd=q; melhorDados=d }
+        }catch(e){}
+      }
+      const localQtd = Object.keys(S.registros).length;
+      if(melhor && (melhorQtd>0 || !localQtd)){
+        CFG.gistId=melhor; CFG.pendente=false; salvarCfg();
+        if(localQtd && melhorQtd>0 && melhorDados.updatedAt < S.updatedAt){
+          return confirmar(`Achei seu backup com ${melhorQtd} conferência(s), mas este aparelho também tem ${localQtd}. Qual manter?`,async()=>{fecharModal();await push();vAjustes()},
+            ()=>{S=migrar(melhorDados);localStorage.setItem(LS_DATA,JSON.stringify(S));syncIdle();ir('inicio')},'Usar deste aparelho','Usar do backup');
+        }
+        S=migrar(melhorDados); localStorage.setItem(LS_DATA,JSON.stringify(S));
+        toast(`Backup encontrado: ${melhorQtd} conferência(s) recuperada(s)!`);
+      } else {
+        const g = await gh('/gists',{method:'POST',body:JSON.stringify({description:'Caixinha Doce – dados',public:false,files:{[GIST_FILE]:{content:JSON.stringify(S)}}})});
+        CFG.gistId=g.id; salvarCfg(); toast('Backup novo criado e conectado!');
+      }
     } else {
       CFG.gistId=id; CFG.pendente=false; salvarCfg();
       const g = await gh('/gists/'+id); const f=g.files[GIST_FILE];
       if(f){ const txt=f.truncated?await (await fetch(f.raw_url)).text():f.content; const remoto=JSON.parse(txt);
-        if(Object.keys(S.registros).length && remoto.updatedAt < S.updatedAt){
+        if(Object.keys(S.registros).length && Object.keys(remoto.registros||{}).length && remoto.updatedAt < S.updatedAt){
           return confirmar('Este aparelho tem dados mais recentes que o Gist. Enviar os dados DESTE aparelho para o Gist?',async()=>{fecharModal();await push();vAjustes()},
             ()=>{S=migrar(remoto);localStorage.setItem(LS_DATA,JSON.stringify(S));syncIdle();vAjustes()},'Enviar daqui','Usar do Gist');
         }
@@ -921,7 +944,7 @@ function travar(){
 
 /* ---------- Início ---------- */
 carregar(); aplicarTema(); cabecalho(); travar();
-if(!localStorage.getItem(LS_DATA)) salvar(false);
+if(!localStorage.getItem(LS_DATA)){ S.updatedAt=0; try{localStorage.setItem(LS_DATA,JSON.stringify(S))}catch(e){} }
 ir('inicio');
 syncIdle(); pull();
 document.getElementById('syncBtn').onclick=()=>{ if(CFG.token&&CFG.gistId) pull().then(()=>toast('Sincronizado')); else ir('ajustes') };
