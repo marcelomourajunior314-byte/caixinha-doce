@@ -1,0 +1,2 @@
+#!/bin/sh
+node testes/rodar.mjs >/dev/null 2>&1 || { echo "Testes falharam: rode node testes/rodar.mjs"; exit 1; }
